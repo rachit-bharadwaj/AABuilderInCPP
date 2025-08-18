@@ -413,7 +413,7 @@ void BuildAutomator::buildAAB(const BuildConfig &config)
                 }
             }
         }
-
+        
         if (m_finishedCallback) {
             m_finishedCallback(true, std::string("AAB build completed successfully. File: ") + finalPath.string());
         }
@@ -677,31 +677,37 @@ void BuildAutomator::buildAPK(const BuildConfig &config)
             // Step 2: Convert AAB to APK using bundletool
             std::filesystem::path bundletoolPath;
             
-            // Get the directory where the executable is located
-            std::filesystem::path exePath;
-#ifdef _WIN32
-            char exePathBuf[MAX_PATH];
-            GetModuleFileNameA(NULL, exePathBuf, MAX_PATH);
-            exePath = std::filesystem::path(exePathBuf);
-#else
-            // Unix/Linux: read from /proc/self/exe
-            char exePathBuf[PATH_MAX];
-            ssize_t len = readlink("/proc/self/exe", exePathBuf, sizeof(exePathBuf) - 1);
-            if (len != -1) {
-                exePathBuf[len] = '\0';
-                exePath = std::filesystem::path(exePathBuf);
+            // First try to find bundletool.jar in the installed location (Program Files)
+            std::filesystem::path installedPath = std::filesystem::path("C:\\Program Files\\React Native Build Automator\\bundletool.jar");
+            if (std::filesystem::exists(installedPath)) {
+                bundletoolPath = installedPath;
             } else {
-                // Fallback to current working directory
-                exePath = std::filesystem::current_path();
-            }
+                // Fallback: Get the directory where the executable is located
+                std::filesystem::path exePath;
+#ifdef _WIN32
+                char exePathBuf[MAX_PATH];
+                GetModuleFileNameA(NULL, exePathBuf, MAX_PATH);
+                exePath = std::filesystem::path(exePathBuf);
+#else
+                // Unix/Linux: read from /proc/self/exe
+                char exePathBuf[PATH_MAX];
+                ssize_t len = readlink("/proc/self/exe", exePathBuf, sizeof(exePathBuf) - 1);
+                if (len != -1) {
+                    exePathBuf[len] = '\0';
+                    exePath = std::filesystem::path(exePathBuf);
+                } else {
+                    // Fallback to current working directory
+                    exePath = std::filesystem::current_path();
+                }
 #endif
-            
-            // Look for bundletool.jar in the executable directory
-            bundletoolPath = exePath.parent_path() / "bundletool.jar";
+                
+                // Look for bundletool.jar in the executable directory
+                bundletoolPath = exePath.parent_path() / "bundletool.jar";
+            }
             
             if (!std::filesystem::exists(bundletoolPath)) {
                 if (m_finishedCallback) {
-                    m_finishedCallback(false, "bundletool.jar not found in executable directory. Please ensure it's available in the same folder as the application.");
+                    m_finishedCallback(false, "bundletool.jar not found. Please ensure the application is properly installed or bundletool.jar is available in the same folder as the executable.");
                 }
                 m_impl->buildInProgress = false;
                 return;
@@ -1009,12 +1015,12 @@ void BuildAutomator::buildAPK(const BuildConfig &config)
             
             std::filesystem::remove_all(extractDir, ec);
             if (ec) {
-                if (m_progressCallback) {
+        if (m_progressCallback) {
                     m_progressCallback(std::string("Warning: Could not remove extraction directory: ") + ec.message());
                 }
-            }
-
-            if (m_finishedCallback) {
+        }
+        
+        if (m_finishedCallback) {
                 m_finishedCallback(true, std::string("APK build completed successfully! File: ") + finalPath.string());
             }
             

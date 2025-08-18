@@ -140,4 +140,8 @@ if errorlevel 1 (
 )
 
 echo.
+echo [INFO] Application built successfully!
+echo [INFO] To create an installer, run: build-installer.bat
+echo [INFO] To run the application directly, use: build\RNBuildAutomator.exe
+echo.
 pause

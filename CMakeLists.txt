@@ -59,3 +59,11 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     $<TARGET_FILE_DIR:${PROJECT_NAME}>/bundletool.jar
     COMMENT "Copying bundletool.jar to output directory"
 )
+
+# Also copy to build directory for development
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_SOURCE_DIR}/bundletool.jar
+    ${CMAKE_BINARY_DIR}/bundletool.jar
+    COMMENT "Copying bundletool.jar to build directory for development"
+)
