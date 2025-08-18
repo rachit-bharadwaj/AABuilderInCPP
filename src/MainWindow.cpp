@@ -3,6 +3,9 @@
 #include <FL/Fl_File_Chooser.H>
 #include <FL/fl_draw.H>
 #include <iostream>
+#include <filesystem>
+#include <ctime>
+#include <cstdio>
 
 MainWindow::MainWindow()
     : Fl_Window(800, 600, "React Native Build Automator")
@@ -273,6 +276,22 @@ void MainWindow::selectProjectPath_cb(Fl_Widget*, void* v)
     if (dir) {
         w->m_projectPathEdit->value(dir);
         w->logMessage(std::string("Selected project path: ") + dir);
+        // Prefill default output name: {project}{ddmmyyyy}
+        std::filesystem::path proj(dir);
+        std::string projName = proj.filename().string();
+        if (projName.empty()) projName = proj.parent_path().filename().string();
+        if (projName.empty()) projName = "app";
+        std::time_t t = std::time(nullptr);
+        std::tm tm{};
+#ifdef _WIN32
+        localtime_s(&tm, &t);
+#else
+        localtime_r(&t, &tm);
+#endif
+        char datebuf[16];
+        std::snprintf(datebuf, sizeof(datebuf), "%02d%02d%04d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+        std::string defaultName = projName + datebuf;
+        w->m_outputNameEdit->value(defaultName.c_str());
         w->updateBuildButtonStates();
     }
 }

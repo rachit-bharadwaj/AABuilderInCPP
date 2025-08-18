@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <sstream>
 #include <cctype>
+#include <ctime>
 #ifdef _WIN32
 #include <windows.h>
 #include <io.h>
@@ -343,13 +344,37 @@ void BuildAutomator::buildAAB(const BuildConfig &config)
                 }
             } else {
                 // Determine base name: user-provided or project name + date
-                std::string baseName = config.outputFileName;
-                auto trim = [](std::string s){ s.erase(0, s.find_first_not_of(" \t\n\r")); s.erase(s.find_last_not_of(" \t\n\r") + 1); return s; };
-                baseName = trim(baseName);
+                auto trim = [](std::string s){
+                    const char* ws = " \t\n\r";
+                    s.erase(0, s.find_first_not_of(ws));
+                    s.erase(s.find_last_not_of(ws) + 1);
+                    return s;
+                };
+                auto endsWithCaseInsensitive = [](const std::string& s, const std::string& suf){
+                    if (s.size() < suf.size()) return false;
+                    for (size_t i = 0; i < suf.size(); ++i) {
+                        char a = (char)std::tolower((unsigned char)s[s.size() - suf.size() + i]);
+                        char b = (char)std::tolower((unsigned char)suf[i]);
+                        if (a != b) return false;
+                    }
+                    return true;
+                };
+
+                std::string baseName = trim(config.outputFileName);
+                if (endsWithCaseInsensitive(baseName, ".aab")) {
+                    baseName = baseName.substr(0, baseName.size() - 4);
+                    baseName = trim(baseName);
+                }
                 if (baseName.empty()) {
-                    // derive from project folder name
+                    // derive from project folder name; handle trailing slash
                     std::filesystem::path proj(config.projectPath);
                     std::string projName = proj.filename().string();
+                    if (projName.empty()) {
+                        projName = proj.parent_path().filename().string();
+                    }
+                    if (projName.empty()) {
+                        projName = "app";
+                    }
                     // date as ddmmyyyy
                     std::time_t t = std::time(nullptr);
                     std::tm tm{};
@@ -363,15 +388,16 @@ void BuildAutomator::buildAAB(const BuildConfig &config)
                     baseName = projName + datebuf;
                 }
 
-                // ensure unique
+                // ensure unique using non-throwing exists
                 std::filesystem::path destPath = outDir / (baseName + ".aab");
+                std::error_code ecExists;
                 int suffix = 1;
-                while (std::filesystem::exists(destPath)) {
+                while (std::filesystem::exists(destPath, ecExists)) {
                     destPath = outDir / (baseName + "-" + std::to_string(suffix) + ".aab");
                     ++suffix;
+                    ecExists.clear();
                 }
-                std::filesystem::copy_options options = std::filesystem::copy_options::overwrite_existing;
-                std::filesystem::copy_file(aabPath, destPath, options, ec);
+                std::filesystem::copy_file(aabPath, destPath, std::filesystem::copy_options::none, ec);
                 if (ec) {
                     if (m_progressCallback) {
                         m_progressCallback(std::string("Warning: Could not copy AAB to output path: ") + ec.message());
