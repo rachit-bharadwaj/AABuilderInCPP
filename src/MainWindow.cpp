@@ -1,375 +1,273 @@
 #include "MainWindow.h"
-#include <QMenuBar>
-#include <QAction>
-#include <QSizePolicy>
-#include <QFont>
+#include <FL/fl_ask.H>
+#include <FL/Fl_File_Chooser.H>
+#include <FL/fl_draw.H>
+#include <iostream>
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , m_centralWidget(nullptr)
-    , m_buildAutomator(new BuildAutomator(this))
+MainWindow::MainWindow()
+    : Fl_Window(800, 600, "React Native Build Automator")
+    , m_buildAutomator(new BuildAutomator())
 {
-    setWindowTitle("React Native Build Automator");
-    setWindowIcon(QIcon(":/icons/app.png")); // We'll add this later
-    resize(800, 600);
-    
     setupUI();
-    setupMenuBar();
-    setupStatusBar();
     
-    // Connect build automator signals
-    connect(m_buildAutomator, &BuildAutomator::buildProgress,
-            this, &MainWindow::onBuildProgress);
-    connect(m_buildAutomator, &BuildAutomator::buildFinished,
-            this, &MainWindow::onBuildFinished);
+    // Set up callbacks for build automator
+    m_buildAutomator->setProgressCallback([this](const std::string& message) {
+        this->onBuildProgress(message);
+    });
+    
+    m_buildAutomator->setFinishedCallback([this](bool success, const std::string& message) {
+        this->onBuildFinished(success, message);
+    });
     
     updateBuildButtonStates();
 }
 
 MainWindow::~MainWindow()
 {
+    delete m_buildAutomator;
 }
 
 void MainWindow::setupUI()
 {
-    m_centralWidget = new QWidget(this);
-    setCentralWidget(m_centralWidget);
-    
-    m_mainSplitter = new QSplitter(Qt::Vertical, this);
-    
-    // Create input group
-    m_inputGroup = new QGroupBox("Project Configuration", this);
-    m_inputGroup->setFixedHeight(180);
-    
-    QGridLayout *inputLayout = new QGridLayout(m_inputGroup);
+    // Input group
+    m_inputGroup = new Fl_Group(20, 20, 760, 180, "Project Configuration");
+    m_inputGroup->box(FL_UP_BOX);
     
     // Project path
-    inputLayout->addWidget(new QLabel("Project Path:"), 0, 0);
-    m_projectPathEdit = new QLineEdit(this);
-    m_projectPathEdit->setPlaceholderText("Select your React Native project folder...");
-    m_projectPathButton = new QPushButton("Browse", this);
-    inputLayout->addWidget(m_projectPathEdit, 0, 1);
-    inputLayout->addWidget(m_projectPathButton, 0, 2);
+    new Fl_Box(30, 50, 100, 25, "Project Path:");
+    m_projectPathEdit = new Fl_Input(140, 50, 500, 25);
+    m_projectPathButton = new Fl_Button(650, 50, 100, 25, "Browse");
+    m_projectPathButton->callback(selectProjectPath_cb, this);
     
     // Output path
-    inputLayout->addWidget(new QLabel("Output Path:"), 1, 0);
-    m_outputPathEdit = new QLineEdit(this);
-    m_outputPathEdit->setPlaceholderText("Select output directory for APK/AAB files...");
-    m_outputPathButton = new QPushButton("Browse", this);
-    inputLayout->addWidget(m_outputPathEdit, 1, 1);
-    inputLayout->addWidget(m_outputPathButton, 1, 2);
+    new Fl_Box(30, 80, 100, 25, "Output Path:");
+    m_outputPathEdit = new Fl_Input(140, 80, 500, 25);
+    m_outputPathButton = new Fl_Button(650, 80, 100, 25, "Browse");
+    m_outputPathButton->callback(selectOutputPath_cb, this);
     
     // Keystore path
-    inputLayout->addWidget(new QLabel("Keystore:"), 2, 0);
-    m_keystorePathEdit = new QLineEdit(this);
-    m_keystorePathEdit->setPlaceholderText("Select your release keystore file...");
-    m_keystoreButton = new QPushButton("Browse", this);
-    inputLayout->addWidget(m_keystorePathEdit, 2, 1);
-    inputLayout->addWidget(m_keystoreButton, 2, 2);
+    new Fl_Box(30, 110, 100, 25, "Keystore:");
+    m_keystorePathEdit = new Fl_Input(140, 110, 500, 25);
+    m_keystoreButton = new Fl_Button(650, 110, 100, 25, "Browse");
+    m_keystoreButton->callback(selectKeystore_cb, this);
     
     // Keystore details
-    QHBoxLayout *keystoreLayout = new QHBoxLayout();
-    keystoreLayout->addWidget(new QLabel("Password:"));
-    m_keystorePasswordEdit = new QLineEdit(this);
-    m_keystorePasswordEdit->setEchoMode(QLineEdit::Password);
-    m_keystorePasswordEdit->setPlaceholderText("Keystore password");
-    keystoreLayout->addWidget(m_keystorePasswordEdit);
+    new Fl_Box(30, 140, 100, 25, "Password:");
+    m_keystorePasswordEdit = new Fl_Input(140, 140, 150, 25);
+    m_keystorePasswordEdit->type(FL_SECRET_INPUT);
     
-    keystoreLayout->addWidget(new QLabel("Alias:"));
-    m_keyAliasEdit = new QLineEdit(this);
-    m_keyAliasEdit->setPlaceholderText("Key alias");
-    keystoreLayout->addWidget(m_keyAliasEdit);
+    new Fl_Box(300, 140, 80, 25, "Alias:");
+    m_keyAliasEdit = new Fl_Input(390, 140, 150, 25);
     
-    keystoreLayout->addWidget(new QLabel("Key Password:"));
-    m_keyPasswordEdit = new QLineEdit(this);
-    m_keyPasswordEdit->setEchoMode(QLineEdit::Password);
-    m_keyPasswordEdit->setPlaceholderText("Key password");
-    keystoreLayout->addWidget(m_keyPasswordEdit);
+    new Fl_Box(550, 140, 100, 25, "Key Password:");
+    m_keyPasswordEdit = new Fl_Input(650, 140, 150, 25);
+    m_keyPasswordEdit->type(FL_SECRET_INPUT);
     
-    inputLayout->addLayout(keystoreLayout, 3, 0, 1, 3);
+    m_inputGroup->end();
     
     // Options group
-    m_optionsGroup = new QGroupBox("Build Options", this);
-    m_optionsGroup->setFixedHeight(80);
+    m_optionsGroup = new Fl_Group(20, 220, 760, 80, "Build Options");
+    m_optionsGroup->box(FL_UP_BOX);
     
-    QHBoxLayout *optionsLayout = new QHBoxLayout(m_optionsGroup);
+    new Fl_Box(30, 250, 100, 25, "Build Mode:");
+    m_buildModeCombo = new Fl_Choice(140, 250, 150, 25);
+    m_buildModeCombo->add("release");
+    m_buildModeCombo->add("debug");
+    m_buildModeCombo->value(0);
     
-    optionsLayout->addWidget(new QLabel("Build Mode:"));
-    m_buildModeCombo = new QComboBox(this);
-    m_buildModeCombo->addItems({"release", "debug"});
-    optionsLayout->addWidget(m_buildModeCombo);
+    m_cleanBuildCheck = new Fl_Check_Button(300, 250, 100, 25, "Clean build");
+    m_cleanBuildCheck->value(1);
     
-    m_cleanBuildCheck = new QCheckBox("Clean build", this);
-    m_cleanBuildCheck->setChecked(true);
-    optionsLayout->addWidget(m_cleanBuildCheck);
-    
-    optionsLayout->addStretch();
+    m_optionsGroup->end();
     
     // Action group
-    m_actionGroup = new QGroupBox("Build Actions", this);
-    m_actionGroup->setFixedHeight(80);
+    m_actionGroup = new Fl_Group(20, 320, 760, 80, "Build Actions");
+    m_actionGroup->box(FL_UP_BOX);
     
-    QHBoxLayout *actionLayout = new QHBoxLayout(m_actionGroup);
+    m_buildAABButton = new Fl_Button(30, 350, 120, 40, "Build AAB");
+    m_buildAABButton->callback(buildAAB_cb, this);
+    m_buildAABButton->color(FL_GREEN);
+    m_buildAABButton->labelcolor(FL_WHITE);
     
-    m_buildAABButton = new QPushButton("Build AAB", this);
-    m_buildAABButton->setMinimumHeight(40);
-    m_buildAABButton->setStyleSheet("QPushButton { background-color: #4CAF50; color: white; font-weight: bold; border-radius: 5px; }");
+    m_buildAPKButton = new Fl_Button(170, 350, 120, 40, "Build APK");
+    m_buildAPKButton->callback(buildAPK_cb, this);
+    m_buildAPKButton->color(FL_BLUE);
+    m_buildAPKButton->labelcolor(FL_WHITE);
     
-    m_buildAPKButton = new QPushButton("Build APK", this);
-    m_buildAPKButton->setMinimumHeight(40);
-    m_buildAPKButton->setStyleSheet("QPushButton { background-color: #2196F3; color: white; font-weight: bold; border-radius: 5px; }");
+    m_clearLogButton = new Fl_Button(310, 350, 120, 40, "Clear Log");
+    m_clearLogButton->callback(clearLog_cb, this);
     
-    m_clearLogButton = new QPushButton("Clear Log", this);
-    m_clearLogButton->setMinimumHeight(40);
-    
-    actionLayout->addWidget(m_buildAABButton);
-    actionLayout->addWidget(m_buildAPKButton);
-    actionLayout->addWidget(m_clearLogButton);
-    actionLayout->addStretch();
+    m_actionGroup->end();
     
     // Log group
-    m_logGroup = new QGroupBox("Build Log", this);
+    m_logGroup = new Fl_Group(20, 420, 760, 160, "Build Log");
+    m_logGroup->box(FL_UP_BOX);
     
-    QVBoxLayout *logLayout = new QVBoxLayout(m_logGroup);
+    m_progressBar = new Fl_Progress(30, 450, 740, 20);
+    m_progressBar->hide();
     
-    m_progressBar = new QProgressBar(this);
-    m_progressBar->setVisible(false);
-    logLayout->addWidget(m_progressBar);
+    m_logBuffer = new Fl_Text_Buffer();
+    m_logTextEdit = new Fl_Text_Display(30, 480, 740, 90);
+    m_logTextEdit->buffer(m_logBuffer);
+    m_logTextEdit->textfont(FL_COURIER);
+    m_logTextEdit->textsize(10);
     
-    m_logTextEdit = new QTextEdit(this);
-    m_logTextEdit->setReadOnly(true);
-    m_logTextEdit->setFont(QFont("Consolas", 9));
-    logLayout->addWidget(m_logTextEdit);
-    
-    // Add groups to splitter
-    QWidget *topWidget = new QWidget();
-    QVBoxLayout *topLayout = new QVBoxLayout(topWidget);
-    topLayout->addWidget(m_inputGroup);
-    topLayout->addWidget(m_optionsGroup);
-    topLayout->addWidget(m_actionGroup);
-    topLayout->setContentsMargins(0, 0, 0, 0);
-    
-    m_mainSplitter->addWidget(topWidget);
-    m_mainSplitter->addWidget(m_logGroup);
-    m_mainSplitter->setSizes({350, 250});
-    
-    // Main layout
-    QVBoxLayout *mainLayout = new QVBoxLayout(m_centralWidget);
-    mainLayout->addWidget(m_mainSplitter);
-    
-    // Connect signals
-    connect(m_projectPathButton, &QPushButton::clicked, this, &MainWindow::selectProjectPath);
-    connect(m_outputPathButton, &QPushButton::clicked, this, &MainWindow::selectOutputPath);
-    connect(m_keystoreButton, &QPushButton::clicked, this, &MainWindow::selectKeystore);
-    connect(m_buildAABButton, &QPushButton::clicked, this, &MainWindow::buildAAB);
-    connect(m_buildAPKButton, &QPushButton::clicked, this, &MainWindow::buildAPK);
-    connect(m_clearLogButton, &QPushButton::clicked, this, &MainWindow::clearLog);
-    
-    // Connect input validation
-    connect(m_projectPathEdit, &QLineEdit::textChanged, this, &MainWindow::updateBuildButtonStates);
-    connect(m_outputPathEdit, &QLineEdit::textChanged, this, &MainWindow::updateBuildButtonStates);
-    connect(m_keystorePathEdit, &QLineEdit::textChanged, this, &MainWindow::updateBuildButtonStates);
+    m_logGroup->end();
 }
 
-void MainWindow::setupMenuBar()
+void MainWindow::selectProjectPath_cb(Fl_Widget*, void* v)
 {
-    QMenuBar *menuBar = this->menuBar();
-    
-    // File menu
-    QMenu *fileMenu = menuBar->addMenu("&File");
-    
-    QAction *exitAction = new QAction("E&xit", this);
-    exitAction->setShortcut(QKeySequence::Quit);
-    connect(exitAction, &QAction::triggered, this, &QWidget::close);
-    fileMenu->addAction(exitAction);
-    
-    // Help menu
-    QMenu *helpMenu = menuBar->addMenu("&Help");
-    
-    QAction *aboutAction = new QAction("&About", this);
-    connect(aboutAction, &QAction::triggered, [this]() {
-        QMessageBox::about(this, "About", 
-            "React Native Build Automator v1.0\n\n"
-            "A professional tool to automate React Native Expo build process.\n\n"
-            "Built with Qt and C++");
-    });
-    helpMenu->addAction(aboutAction);
-}
-
-void MainWindow::setupStatusBar()
-{
-    m_statusLabel = new QLabel("Ready", this);
-    statusBar()->addWidget(m_statusLabel);
-    statusBar()->showMessage("Application started successfully");
-}
-
-void MainWindow::selectProjectPath()
-{
-    QString dir = QFileDialog::getExistingDirectory(
-        this, 
-        "Select React Native Project Directory",
-        QDir::homePath()
-    );
-    
-    if (!dir.isEmpty()) {
-        m_projectPathEdit->setText(dir);
-        m_logTextEdit->append(QString("Selected project path: %1").arg(dir));
+    MainWindow* w = static_cast<MainWindow*>(v);
+    const char* dir = fl_dir_chooser("Select React Native Project Directory", w->m_projectPathEdit->value());
+    if (dir) {
+        w->m_projectPathEdit->value(dir);
+        w->logMessage(std::string("Selected project path: ") + dir);
     }
 }
 
-void MainWindow::selectOutputPath()
+void MainWindow::selectOutputPath_cb(Fl_Widget*, void* v)
 {
-    QString dir = QFileDialog::getExistingDirectory(
-        this, 
-        "Select Output Directory",
-        QDir::homePath()
-    );
-    
-    if (!dir.isEmpty()) {
-        m_outputPathEdit->setText(dir);
-        m_logTextEdit->append(QString("Selected output path: %1").arg(dir));
+    MainWindow* w = static_cast<MainWindow*>(v);
+    const char* dir = fl_dir_chooser("Select Output Directory", w->m_outputPathEdit->value());
+    if (dir) {
+        w->m_outputPathEdit->value(dir);
+        w->logMessage(std::string("Selected output path: ") + dir);
     }
 }
 
-void MainWindow::selectKeystore()
+void MainWindow::selectKeystore_cb(Fl_Widget*, void* v)
 {
-    QString file = QFileDialog::getOpenFileName(
-        this,
-        "Select Keystore File",
-        QDir::homePath(),
-        "Keystore files (*.keystore *.jks);;All files (*.*)"
-    );
-    
-    if (!file.isEmpty()) {
-        m_keystorePathEdit->setText(file);
-        m_logTextEdit->append(QString("Selected keystore: %1").arg(file));
+    MainWindow* w = static_cast<MainWindow*>(v);
+    const char* file = fl_file_chooser("Select Keystore File", "Keystore files (*.keystore *.jks)\tAll files (*.*)", w->m_keystorePathEdit->value());
+    if (file) {
+        w->m_keystorePathEdit->value(file);
+        w->logMessage(std::string("Selected keystore: ") + file);
     }
 }
 
-void MainWindow::buildAAB()
+void MainWindow::buildAAB_cb(Fl_Widget*, void* v)
 {
-    if (!validateInputs()) return;
+    MainWindow* w = static_cast<MainWindow*>(v);
+    if (!w->validateInputs()) return;
     
     BuildAutomator::BuildConfig config;
-    config.projectPath = m_projectPathEdit->text();
-    config.outputPath = m_outputPathEdit->text();
-    config.keystorePath = m_keystorePathEdit->text();
-    config.keystorePassword = m_keystorePasswordEdit->text();
-    config.keyAlias = m_keyAliasEdit->text();
-    config.keyPassword = m_keyPasswordEdit->text();
-    config.buildMode = m_buildModeCombo->currentText();
-    config.cleanBuild = m_cleanBuildCheck->isChecked();
+    config.projectPath = w->m_projectPathEdit->value();
+    config.outputPath = w->m_outputPathEdit->value();
+    config.keystorePath = w->m_keystorePathEdit->value();
+    config.keystorePassword = w->m_keystorePasswordEdit->value();
+    config.keyAlias = w->m_keyAliasEdit->value();
+    config.keyPassword = w->m_keyPasswordEdit->value();
+    config.buildMode = w->m_buildModeCombo->text();
+    config.cleanBuild = w->m_cleanBuildCheck->value();
     
-    m_progressBar->setVisible(true);
-    m_progressBar->setRange(0, 0); // Indeterminate progress
-    updateBuildButtonStates();
+    w->m_progressBar->show();
+    w->updateBuildButtonStates();
     
-    m_buildAutomator->buildAAB(config);
+    w->m_buildAutomator->buildAAB(config);
 }
 
-void MainWindow::buildAPK()
+void MainWindow::buildAPK_cb(Fl_Widget*, void* v)
 {
-    if (!validateInputs()) return;
+    MainWindow* w = static_cast<MainWindow*>(v);
+    if (!w->validateInputs()) return;
     
     BuildAutomator::BuildConfig config;
-    config.projectPath = m_projectPathEdit->text();
-    config.outputPath = m_outputPathEdit->text();
-    config.keystorePath = m_keystorePathEdit->text();
-    config.keystorePassword = m_keystorePasswordEdit->text();
-    config.keyAlias = m_keyAliasEdit->text();
-    config.keyPassword = m_keyPasswordEdit->text();
-    config.buildMode = m_buildModeCombo->currentText();
-    config.cleanBuild = m_cleanBuildCheck->isChecked();
+    config.projectPath = w->m_projectPathEdit->value();
+    config.outputPath = w->m_outputPathEdit->value();
+    config.keystorePath = w->m_keystorePathEdit->value();
+    config.keystorePassword = w->m_keystorePasswordEdit->value();
+    config.keyAlias = w->m_keyAliasEdit->value();
+    config.keyPassword = w->m_keyPasswordEdit->value();
+    config.buildMode = w->m_buildModeCombo->text();
+    config.cleanBuild = w->m_cleanBuildCheck->value();
     
-    m_progressBar->setVisible(true);
-    m_progressBar->setRange(0, 0); // Indeterminate progress
-    updateBuildButtonStates();
+    w->m_progressBar->show();
+    w->updateBuildButtonStates();
     
-    m_buildAutomator->buildAPK(config);
+    w->m_buildAutomator->buildAPK(config);
 }
 
-void MainWindow::onBuildFinished(bool success, const QString &message)
+void MainWindow::clearLog_cb(Fl_Widget*, void* v)
 {
-    m_progressBar->setVisible(false);
-    updateBuildButtonStates();
-    
-    if (success) {
-        m_logTextEdit->append(QString("\n✅ BUILD SUCCESSFUL: %1\n").arg(message));
-        statusBar()->showMessage("Build completed successfully", 3000);
-        QMessageBox::information(this, "Build Complete", message);
-    } else {
-        m_logTextEdit->append(QString("\n❌ BUILD FAILED: %1\n").arg(message));
-        statusBar()->showMessage("Build failed", 3000);
-        QMessageBox::critical(this, "Build Error", message);
-    }
-}
-
-void MainWindow::onBuildProgress(const QString &message)
-{
-    m_logTextEdit->append(message);
-    m_logTextEdit->ensureCursorVisible();
-    statusBar()->showMessage(message, 1000);
-}
-
-void MainWindow::clearLog()
-{
-    m_logTextEdit->clear();
-    m_logTextEdit->append("Log cleared.\n");
+    MainWindow* w = static_cast<MainWindow*>(v);
+    w->m_logBuffer->text("");
+    w->logMessage("Log cleared.");
 }
 
 void MainWindow::updateBuildButtonStates()
 {
-    bool hasRequiredInputs = !m_projectPathEdit->text().isEmpty() &&
-                           !m_outputPathEdit->text().isEmpty() &&
-                           !m_keystorePathEdit->text().isEmpty();
+    bool hasRequiredInputs = strlen(m_projectPathEdit->value()) > 0 &&
+                           strlen(m_outputPathEdit->value()) > 0 &&
+                           strlen(m_keystorePathEdit->value()) > 0;
     
     bool buildInProgress = m_buildAutomator->isBuildInProgress();
     
-    m_buildAABButton->setEnabled(hasRequiredInputs && !buildInProgress);
-    m_buildAPKButton->setEnabled(hasRequiredInputs && !buildInProgress);
+    if (hasRequiredInputs && !buildInProgress) {
+        m_buildAABButton->activate();
+        m_buildAPKButton->activate();
+    } else {
+        m_buildAABButton->deactivate();
+        m_buildAPKButton->deactivate();
+    }
 }
 
 bool MainWindow::validateInputs()
 {
-    if (m_projectPathEdit->text().isEmpty()) {
-        QMessageBox::warning(this, "Missing Input", "Please select a project path.");
+    if (strlen(m_projectPathEdit->value()) == 0) {
+        fl_alert("Please select a project path.");
         return false;
     }
     
-    if (m_outputPathEdit->text().isEmpty()) {
-        QMessageBox::warning(this, "Missing Input", "Please select an output path.");
+    if (strlen(m_outputPathEdit->value()) == 0) {
+        fl_alert("Please select an output path.");
         return false;
     }
     
-    if (m_keystorePathEdit->text().isEmpty()) {
-        QMessageBox::warning(this, "Missing Input", "Please select a keystore file.");
+    if (strlen(m_keystorePathEdit->value()) == 0) {
+        fl_alert("Please select a keystore file.");
         return false;
     }
     
-    if (m_keystorePasswordEdit->text().isEmpty()) {
-        QMessageBox::warning(this, "Missing Input", "Please enter keystore password.");
+    if (strlen(m_keystorePasswordEdit->value()) == 0) {
+        fl_alert("Please enter keystore password.");
         return false;
     }
     
-    if (m_keyAliasEdit->text().isEmpty()) {
-        QMessageBox::warning(this, "Missing Input", "Please enter key alias.");
+    if (strlen(m_keyAliasEdit->value()) == 0) {
+        fl_alert("Please enter key alias.");
         return false;
     }
     
-    if (m_keyPasswordEdit->text().isEmpty()) {
-        QMessageBox::warning(this, "Missing Input", "Please enter key password.");
-        return false;
-    }
-    
-    if (!QDir(m_projectPathEdit->text()).exists()) {
-        QMessageBox::warning(this, "Invalid Path", "Project path does not exist.");
-        return false;
-    }
-    
-    if (!QFileInfo(m_keystorePathEdit->text()).exists()) {
-        QMessageBox::warning(this, "Invalid File", "Keystore file does not exist.");
+    if (strlen(m_keyPasswordEdit->value()) == 0) {
+        fl_alert("Please enter key password.");
         return false;
     }
     
     return true;
+}
+
+void MainWindow::logMessage(const std::string& message)
+{
+    m_logBuffer->append(message.c_str());
+    m_logBuffer->append("\n");
+    m_logTextEdit->scroll(m_logBuffer->count_lines(0, m_logBuffer->length()), 0);
+}
+
+void MainWindow::onBuildFinished(bool success, const std::string& message)
+{
+    m_progressBar->hide();
+    updateBuildButtonStates();
+    
+    if (success) {
+        logMessage("\n✅ BUILD SUCCESSFUL: " + message + "\n");
+        fl_message("Build Complete");
+    } else {
+        logMessage("\n❌ BUILD FAILED: " + message + "\n");
+        fl_alert("Build Error: %s", message.c_str());
+    }
+}
+
+void MainWindow::onBuildProgress(const std::string& message)
+{
+    logMessage(message);
 }

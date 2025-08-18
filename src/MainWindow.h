@@ -8,6 +8,7 @@
 #include <FL/Fl_Choice.H>
 #include <FL/Fl_Check_Button.H>
 #include <FL/Fl_Text_Display.H>
+#include <FL/Fl_Text_Buffer.H>
 #include <FL/Fl_Progress.H>
 #include <FL/Fl_Box.H>
 #include <FL/Fl_File_Chooser.H>

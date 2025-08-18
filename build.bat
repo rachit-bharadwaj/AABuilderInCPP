@@ -76,8 +76,15 @@ echo FLTK installed successfully at C:\fltk
 echo.
 
 echo Cleaning up FLTK source files...
-rmdir /s /q fltk
-echo FLTK source files removed from project directory
+if exist fltk (
+    rmdir /s /q fltk 2>nul
+    if errorlevel 1 (
+        echo Note: Could not remove FLTK source directory automatically
+        echo You can manually delete the 'fltk' folder if desired
+    ) else (
+        echo FLTK source files removed from project directory
+    )
+)
 echo.
 
 :build_app
@@ -87,7 +94,7 @@ cd build
 
 REM Configure with CMake
 echo Configuring project with CMake...
-cmake -G "MinGW Makefiles" -DFLTK_DIR=C:\fltk\lib\cmake\fltk ..
+cmake -G "MinGW Makefiles" -DCMAKE_PREFIX_PATH=C:\fltk ..
 if errorlevel 1 (
     echo Error: CMake configuration failed!
     echo Make sure FLTK is properly installed at C:\fltk
