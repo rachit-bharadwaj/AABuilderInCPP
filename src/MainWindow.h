@@ -29,6 +29,7 @@ private:
     static void buildAAB_cb(Fl_Widget*, void*);
     static void buildAPK_cb(Fl_Widget*, void*);
     static void clearLog_cb(Fl_Widget*, void*);
+    static void inputChanged_cb(Fl_Widget*, void*);
     
     void setupUI();
     void updateBuildButtonStates();

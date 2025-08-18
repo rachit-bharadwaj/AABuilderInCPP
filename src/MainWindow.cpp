@@ -20,6 +20,10 @@ MainWindow::MainWindow()
     });
     
     updateBuildButtonStates();
+    
+    // Debug: Log that initialization is complete
+    logMessage("MainWindow initialized successfully");
+    logMessage("BuildAutomator callbacks set up");
 }
 
 MainWindow::~MainWindow()
@@ -36,18 +40,24 @@ void MainWindow::setupUI()
     // Project path
     new Fl_Box(30, 50, 100, 25, "Project Path:");
     m_projectPathEdit = new Fl_Input(140, 50, 500, 25);
+    m_projectPathEdit->callback(inputChanged_cb, this);
+    m_projectPathEdit->when(FL_WHEN_CHANGED);
     m_projectPathButton = new Fl_Button(650, 50, 100, 25, "Browse");
     m_projectPathButton->callback(selectProjectPath_cb, this);
     
     // Output path
     new Fl_Box(30, 80, 100, 25, "Output Path:");
     m_outputPathEdit = new Fl_Input(140, 80, 500, 25);
+    m_outputPathEdit->callback(inputChanged_cb, this);
+    m_outputPathEdit->when(FL_WHEN_CHANGED);
     m_outputPathButton = new Fl_Button(650, 80, 100, 25, "Browse");
     m_outputPathButton->callback(selectOutputPath_cb, this);
     
     // Keystore path
     new Fl_Box(30, 110, 100, 25, "Keystore:");
     m_keystorePathEdit = new Fl_Input(140, 110, 500, 25);
+    m_keystorePathEdit->callback(inputChanged_cb, this);
+    m_keystorePathEdit->when(FL_WHEN_CHANGED);
     m_keystoreButton = new Fl_Button(650, 110, 100, 25, "Browse");
     m_keystoreButton->callback(selectKeystore_cb, this);
     
@@ -55,13 +65,19 @@ void MainWindow::setupUI()
     new Fl_Box(30, 140, 100, 25, "Password:");
     m_keystorePasswordEdit = new Fl_Input(140, 140, 150, 25);
     m_keystorePasswordEdit->type(FL_SECRET_INPUT);
+    m_keystorePasswordEdit->callback(inputChanged_cb, this);
+    m_keystorePasswordEdit->when(FL_WHEN_CHANGED);
     
     new Fl_Box(300, 140, 80, 25, "Alias:");
     m_keyAliasEdit = new Fl_Input(390, 140, 150, 25);
+    m_keyAliasEdit->callback(inputChanged_cb, this);
+    m_keyAliasEdit->when(FL_WHEN_CHANGED);
     
     new Fl_Box(550, 140, 100, 25, "Key Password:");
     m_keyPasswordEdit = new Fl_Input(650, 140, 150, 25);
     m_keyPasswordEdit->type(FL_SECRET_INPUT);
+    m_keyPasswordEdit->callback(inputChanged_cb, this);
+    m_keyPasswordEdit->when(FL_WHEN_CHANGED);
     
     m_inputGroup->end();
     
@@ -122,6 +138,7 @@ void MainWindow::selectProjectPath_cb(Fl_Widget*, void* v)
     if (dir) {
         w->m_projectPathEdit->value(dir);
         w->logMessage(std::string("Selected project path: ") + dir);
+        w->updateBuildButtonStates();
     }
 }
 
@@ -132,6 +149,7 @@ void MainWindow::selectOutputPath_cb(Fl_Widget*, void* v)
     if (dir) {
         w->m_outputPathEdit->value(dir);
         w->logMessage(std::string("Selected output path: ") + dir);
+        w->updateBuildButtonStates();
     }
 }
 
@@ -142,13 +160,27 @@ void MainWindow::selectKeystore_cb(Fl_Widget*, void* v)
     if (file) {
         w->m_keystorePathEdit->value(file);
         w->logMessage(std::string("Selected keystore: ") + file);
+        w->updateBuildButtonStates();
     }
+}
+
+void MainWindow::inputChanged_cb(Fl_Widget*, void* v)
+{
+    MainWindow* w = static_cast<MainWindow*>(v);
+    w->updateBuildButtonStates();
 }
 
 void MainWindow::buildAAB_cb(Fl_Widget*, void* v)
 {
     MainWindow* w = static_cast<MainWindow*>(v);
-    if (!w->validateInputs()) return;
+    w->logMessage("Build AAB button clicked!");
+    
+    if (!w->validateInputs()) {
+        w->logMessage("Input validation failed!");
+        return;
+    }
+    
+    w->logMessage("Starting AAB build...");
     
     BuildAutomator::BuildConfig config;
     config.projectPath = w->m_projectPathEdit->value();
@@ -169,7 +201,14 @@ void MainWindow::buildAAB_cb(Fl_Widget*, void* v)
 void MainWindow::buildAPK_cb(Fl_Widget*, void* v)
 {
     MainWindow* w = static_cast<MainWindow*>(v);
-    if (!w->validateInputs()) return;
+    w->logMessage("Build APK button clicked!");
+    
+    if (!w->validateInputs()) {
+        w->logMessage("Input validation failed!");
+        return;
+    }
+    
+    w->logMessage("Starting APK build...");
     
     BuildAutomator::BuildConfig config;
     config.projectPath = w->m_projectPathEdit->value();
@@ -260,7 +299,7 @@ void MainWindow::onBuildFinished(bool success, const std::string& message)
     
     if (success) {
         logMessage("\n✅ BUILD SUCCESSFUL: " + message + "\n");
-        fl_message("Build Complete");
+        fl_message("Build Complete: %s", message.c_str());
     } else {
         logMessage("\n❌ BUILD FAILED: " + message + "\n");
         fl_alert("Build Error: %s", message.c_str());
