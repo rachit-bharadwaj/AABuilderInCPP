@@ -21,6 +21,7 @@ class MainWindow : public Fl_Window
 public:
     MainWindow();
     ~MainWindow();
+    void resize(int x, int y, int w, int h) override;
 
 private:
     static void selectProjectPath_cb(Fl_Widget*, void*);
@@ -34,17 +35,25 @@ private:
     void setupUI();
     void updateBuildButtonStates();
     bool validateInputs();
+    void updateLayout(int w, int h);
+    static void busyTick_cb(void* userdata);
     
     // UI Components
     Fl_Group *m_inputGroup;
+    Fl_Box *m_lblProjectPath;
     Fl_Input *m_projectPathEdit;
     Fl_Button *m_projectPathButton;
+    Fl_Box *m_lblOutputPath;
     Fl_Input *m_outputPathEdit;
     Fl_Button *m_outputPathButton;
+    Fl_Box *m_lblKeystore;
     Fl_Input *m_keystorePathEdit;
     Fl_Button *m_keystoreButton;
+    Fl_Box *m_lblPassword;
     Fl_Input *m_keystorePasswordEdit;
+    Fl_Box *m_lblAlias;
     Fl_Input *m_keyAliasEdit;
+    Fl_Box *m_lblKeyPassword;
     Fl_Input *m_keyPasswordEdit;
     
     // Build options group
@@ -66,6 +75,7 @@ private:
     
     // Business logic
     BuildAutomator *m_buildAutomator;
+    bool m_busyAnimating = false;
     
     // Helper methods
     void logMessage(const std::string& message);

@@ -13,6 +13,7 @@ MainWindow::MainWindow()
     this->resizable(m_logGroup);
     this->size_range(800, 600, 0, 0);
     this->color(fl_rgb_color(245,246,250));
+    this->callback([](Fl_Widget* w, void*){}, nullptr);
     
     // Set up callbacks for build automator
     m_buildAutomator->setProgressCallback([this](const std::string& message) {
@@ -44,7 +45,9 @@ void MainWindow::setupUI()
     m_inputGroup->labelsize(14);
     
     // Project path
-    new Fl_Box(30, 50, 100, 25, "Project Path:");
+    m_lblProjectPath = new Fl_Box(30, 50, 100, 25, "Project Path:");
+    m_lblProjectPath->labelfont(FL_HELVETICA);
+    m_lblProjectPath->labelsize(12);
     m_projectPathEdit = new Fl_Input(140, 50, 500, 25);
     m_projectPathEdit->callback(inputChanged_cb, this);
     m_projectPathEdit->when(FL_WHEN_CHANGED);
@@ -52,7 +55,9 @@ void MainWindow::setupUI()
     m_projectPathButton->callback(selectProjectPath_cb, this);
     
     // Output path
-    new Fl_Box(30, 80, 100, 25, "Output Path:");
+    m_lblOutputPath = new Fl_Box(30, 80, 100, 25, "Output Path:");
+    m_lblOutputPath->labelfont(FL_HELVETICA);
+    m_lblOutputPath->labelsize(12);
     m_outputPathEdit = new Fl_Input(140, 80, 500, 25);
     m_outputPathEdit->callback(inputChanged_cb, this);
     m_outputPathEdit->when(FL_WHEN_CHANGED);
@@ -60,7 +65,9 @@ void MainWindow::setupUI()
     m_outputPathButton->callback(selectOutputPath_cb, this);
     
     // Keystore path
-    new Fl_Box(30, 110, 100, 25, "Keystore:");
+    m_lblKeystore = new Fl_Box(30, 110, 100, 25, "Keystore:");
+    m_lblKeystore->labelfont(FL_HELVETICA);
+    m_lblKeystore->labelsize(12);
     m_keystorePathEdit = new Fl_Input(140, 110, 500, 25);
     m_keystorePathEdit->callback(inputChanged_cb, this);
     m_keystorePathEdit->when(FL_WHEN_CHANGED);
@@ -68,18 +75,24 @@ void MainWindow::setupUI()
     m_keystoreButton->callback(selectKeystore_cb, this);
     
     // Keystore details
-    new Fl_Box(30, 140, 100, 25, "Password:");
+    m_lblPassword = new Fl_Box(30, 140, 100, 25, "Password:");
+    m_lblPassword->labelfont(FL_HELVETICA);
+    m_lblPassword->labelsize(12);
     m_keystorePasswordEdit = new Fl_Input(140, 140, 150, 25);
     m_keystorePasswordEdit->type(FL_SECRET_INPUT);
     m_keystorePasswordEdit->callback(inputChanged_cb, this);
     m_keystorePasswordEdit->when(FL_WHEN_CHANGED);
     
-    new Fl_Box(300, 140, 80, 25, "Alias:");
+    m_lblAlias = new Fl_Box(300, 140, 80, 25, "Alias:");
+    m_lblAlias->labelfont(FL_HELVETICA);
+    m_lblAlias->labelsize(12);
     m_keyAliasEdit = new Fl_Input(390, 140, 150, 25);
     m_keyAliasEdit->callback(inputChanged_cb, this);
     m_keyAliasEdit->when(FL_WHEN_CHANGED);
     
-    new Fl_Box(550, 140, 100, 25, "Key Password:");
+    m_lblKeyPassword = new Fl_Box(550, 140, 100, 25, "Key Password:");
+    m_lblKeyPassword->labelfont(FL_HELVETICA);
+    m_lblKeyPassword->labelsize(12);
     m_keyPasswordEdit = new Fl_Input(650, 140, 150, 25);
     m_keyPasswordEdit->type(FL_SECRET_INPUT);
     m_keyPasswordEdit->callback(inputChanged_cb, this);
@@ -93,7 +106,9 @@ void MainWindow::setupUI()
     m_optionsGroup->labelfont(FL_HELVETICA_BOLD);
     m_optionsGroup->labelsize(14);
     
-    new Fl_Box(30, 250, 100, 25, "Build Mode:");
+    Fl_Box* lblMode = new Fl_Box(30, 250, 100, 25, "Build Mode:");
+    lblMode->labelfont(FL_HELVETICA);
+    lblMode->labelsize(12);
     m_buildModeCombo = new Fl_Choice(140, 250, 150, 25);
     m_buildModeCombo->add("release");
     m_buildModeCombo->add("debug");
@@ -161,6 +176,74 @@ void MainWindow::setupUI()
     m_logGroup->end();
 }
 
+void MainWindow::resize(int x, int y, int w, int h)
+{
+    Fl_Window::resize(x, y, w, h);
+    updateLayout(w, h);
+}
+
+void MainWindow::updateLayout(int w, int h)
+{
+    // Maintain margins and a two-column layout for form rows
+    int margin = 20;
+    int contentW = w - margin * 2;
+
+    // Resize groups
+    m_inputGroup->resize(margin, 20, contentW, 180);
+    m_optionsGroup->resize(margin, 220, contentW, 80);
+    m_actionGroup->resize(margin, 320, contentW, 80);
+    m_logGroup->resize(margin, 420, contentW, h - 440);
+
+    // Form layout
+    int labelW = 110;
+    int buttonW = 100;
+    int gap = 10;
+    int fieldX = margin + labelW + gap;
+    int fieldW = contentW - labelW - buttonW - gap * 3;
+    if (fieldW < 240) fieldW = 240;
+
+    m_lblProjectPath->resize(margin + 10, 50, labelW, 25);
+    m_projectPathEdit->resize(fieldX, 50, fieldW, 25);
+    m_projectPathButton->resize(margin + contentW - buttonW - 10, 50, buttonW, 25);
+
+    m_lblOutputPath->resize(margin + 10, 80, labelW, 25);
+    m_outputPathEdit->resize(fieldX, 80, fieldW, 25);
+    m_outputPathButton->resize(margin + contentW - buttonW - 10, 80, buttonW, 25);
+
+    m_lblKeystore->resize(margin + 10, 110, labelW, 25);
+    m_keystorePathEdit->resize(fieldX, 110, fieldW, 25);
+    m_keystoreButton->resize(margin + contentW - buttonW - 10, 110, buttonW, 25);
+
+    // Lower row (three columns): Password | Alias | Key Password
+    int colW = (contentW - 40) / 3; // divide remaining space into 3
+    if (colW < 200) colW = 200;
+    int rowY = 140;
+
+    // Password
+    m_lblPassword->resize(margin + 10, rowY, labelW, 25);
+    m_keystorePasswordEdit->resize(margin + 10 + labelW + gap, rowY, colW - labelW - gap, 25);
+
+    // Alias
+    int aliasX = margin + 10 + colW + gap;
+    m_lblAlias->resize(aliasX, rowY, labelW, 25);
+    m_keyAliasEdit->resize(aliasX + labelW + gap, rowY, colW - labelW - gap, 25);
+
+    // Key Password
+    int keyPwdX = margin + 10 + colW * 2 + gap * 2;
+    m_lblKeyPassword->resize(keyPwdX, rowY, labelW + 20, 25);
+    m_keyPasswordEdit->resize(keyPwdX + labelW + 20 + gap, rowY, colW - labelW - 20 - gap, 25);
+
+    // Action buttons centered left
+    m_buildAABButton->resize(margin + 10, 350, 120, 40);
+    m_buildAPKButton->resize(margin + 150, 350, 120, 40);
+    m_clearLogButton->resize(margin + 290, 350, 120, 40);
+
+    // Log widgets
+    m_progressBar->resize(margin + 10, 450, contentW - 20, 20);
+    m_logTextEdit->resize(margin + 10, 480, contentW - 20, h - 510);
+    m_logGroup->redraw();
+}
+
 void MainWindow::selectProjectPath_cb(Fl_Widget*, void* v)
 {
     MainWindow* w = static_cast<MainWindow*>(v);
@@ -223,6 +306,14 @@ void MainWindow::buildAAB_cb(Fl_Widget*, void* v)
     config.cleanBuild = w->m_cleanBuildCheck->value();
     
     w->m_progressBar->show();
+    // Start busy animation
+    if (!w->m_busyAnimating) {
+        w->m_busyAnimating = true;
+        w->m_progressBar->minimum(0);
+        w->m_progressBar->maximum(100);
+        w->m_progressBar->value(0);
+        Fl::add_timeout(0.05, busyTick_cb, w);
+    }
     w->updateBuildButtonStates();
     
     w->m_buildAutomator->buildAAB(config);
@@ -251,6 +342,13 @@ void MainWindow::buildAPK_cb(Fl_Widget*, void* v)
     config.cleanBuild = w->m_cleanBuildCheck->value();
     
     w->m_progressBar->show();
+    if (!w->m_busyAnimating) {
+        w->m_busyAnimating = true;
+        w->m_progressBar->minimum(0);
+        w->m_progressBar->maximum(100);
+        w->m_progressBar->value(0);
+        Fl::add_timeout(0.05, busyTick_cb, w);
+    }
     w->updateBuildButtonStates();
     
     w->m_buildAutomator->buildAPK(config);
@@ -325,6 +423,10 @@ void MainWindow::logMessage(const std::string& message)
 void MainWindow::onBuildFinished(bool success, const std::string& message)
 {
     m_progressBar->hide();
+    // Stop busy animation if running
+    if (m_busyAnimating) {
+        m_busyAnimating = false;
+    }
     updateBuildButtonStates();
     
     if (success) {
@@ -339,4 +441,16 @@ void MainWindow::onBuildFinished(bool success, const std::string& message)
 void MainWindow::onBuildProgress(const std::string& message)
 {
     logMessage(message);
+}
+
+void MainWindow::busyTick_cb(void* userdata)
+{
+    MainWindow* w = static_cast<MainWindow*>(userdata);
+    if (!w->m_busyAnimating) return;
+    double v = w->m_progressBar->value();
+    v += 2.5;
+    if (v > 100) v = 0;
+    w->m_progressBar->value(v);
+    w->m_progressBar->redraw();
+    Fl::repeat_timeout(0.05, busyTick_cb, w);
 }
