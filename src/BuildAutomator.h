@@ -14,6 +14,7 @@ public:
     struct BuildConfig {
         std::string projectPath;
         std::string outputPath;
+        std::string outputFileName; // desired artifact base name (without extension optional)
         std::string keystorePath;
         std::string keystorePassword;
         std::string keyAlias;

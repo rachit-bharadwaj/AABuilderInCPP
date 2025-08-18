@@ -13,7 +13,8 @@ MainWindow::MainWindow()
     this->resizable(m_logGroup);
     this->size_range(800, 600, 0, 0);
     this->color(fl_rgb_color(245,246,250));
-    this->callback([](Fl_Widget* w, void*){}, nullptr);
+    // Ensure window closes when the system close button is clicked
+    this->callback([](Fl_Widget* w, void*) { w->hide(); }, nullptr);
     
     // Set up callbacks for build automator
     m_buildAutomator->setProgressCallback([this](const std::string& message) {
@@ -106,16 +107,23 @@ void MainWindow::setupUI()
     m_optionsGroup->labelfont(FL_HELVETICA_BOLD);
     m_optionsGroup->labelsize(14);
     
-    Fl_Box* lblMode = new Fl_Box(30, 250, 100, 25, "Build Mode:");
-    lblMode->labelfont(FL_HELVETICA);
-    lblMode->labelsize(12);
+    m_lblBuildMode = new Fl_Box(30, 250, 100, 25, "Build Mode:");
+    m_lblBuildMode->labelfont(FL_HELVETICA);
+    m_lblBuildMode->labelsize(12);
     m_buildModeCombo = new Fl_Choice(140, 250, 150, 25);
     m_buildModeCombo->add("release");
     m_buildModeCombo->add("debug");
     m_buildModeCombo->value(0);
     
-    m_cleanBuildCheck = new Fl_Check_Button(300, 250, 100, 25, "Clean build");
-    m_cleanBuildCheck->value(1);
+    m_cleanBuildCheck = new Fl_Check_Button(300, 250, 120, 25, "Clean build");
+    m_cleanBuildCheck->value(0);
+
+    // Output name (optional override)
+    m_lblOutputName = new Fl_Box(430, 250, 100, 25, "Output Name:");
+    m_lblOutputName->labelfont(FL_HELVETICA);
+    m_lblOutputName->labelsize(12);
+    m_outputNameEdit = new Fl_Input(530, 250, 250, 25);
+    m_outputNameEdit->when(FL_WHEN_CHANGED);
     
     m_optionsGroup->end();
     
@@ -242,6 +250,20 @@ void MainWindow::updateLayout(int w, int h)
     m_progressBar->resize(margin + 10, 450, contentW - 20, 20);
     m_logTextEdit->resize(margin + 10, 480, contentW - 20, h - 510);
     m_logGroup->redraw();
+
+    // Build Options row positions (prevent overlap)
+    int optionsY = 250;
+    int modeLabelX = margin + 30;
+    int modeFieldX = modeLabelX + labelW + gap;
+    m_lblBuildMode->resize(modeLabelX, optionsY, labelW, 25);
+    m_buildModeCombo->resize(modeFieldX, optionsY, 160, 25);
+    int cleanX = modeFieldX + 180;
+    m_cleanBuildCheck->resize(cleanX, optionsY, 120, 25);
+    int outNameLabelX = cleanX + 150;
+    m_lblOutputName->resize(outNameLabelX, optionsY, 100, 25);
+    int outNameFieldX = outNameLabelX + 100 + gap;
+    int outNameW = std::max(200, margin + contentW - outNameFieldX - 10);
+    m_outputNameEdit->resize(outNameFieldX, optionsY, outNameW, 25);
 }
 
 void MainWindow::selectProjectPath_cb(Fl_Widget*, void* v)
@@ -298,6 +320,7 @@ void MainWindow::buildAAB_cb(Fl_Widget*, void* v)
     BuildAutomator::BuildConfig config;
     config.projectPath = w->m_projectPathEdit->value();
     config.outputPath = w->m_outputPathEdit->value();
+    config.outputFileName = w->m_outputNameEdit->value();
     config.keystorePath = w->m_keystorePathEdit->value();
     config.keystorePassword = w->m_keystorePasswordEdit->value();
     config.keyAlias = w->m_keyAliasEdit->value();
@@ -334,6 +357,7 @@ void MainWindow::buildAPK_cb(Fl_Widget*, void* v)
     BuildAutomator::BuildConfig config;
     config.projectPath = w->m_projectPathEdit->value();
     config.outputPath = w->m_outputPathEdit->value();
+    config.outputFileName = w->m_outputNameEdit->value();
     config.keystorePath = w->m_keystorePathEdit->value();
     config.keystorePassword = w->m_keystorePasswordEdit->value();
     config.keyAlias = w->m_keyAliasEdit->value();

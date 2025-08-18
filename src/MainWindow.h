@@ -58,8 +58,11 @@ private:
     
     // Build options group
     Fl_Group *m_optionsGroup;
+    Fl_Box *m_lblBuildMode;
     Fl_Choice *m_buildModeCombo;
     Fl_Check_Button *m_cleanBuildCheck;
+    Fl_Box *m_lblOutputName;
+    Fl_Input *m_outputNameEdit;
     
     // Action group
     Fl_Group *m_actionGroup;

@@ -67,6 +67,62 @@ void BuildAutomator::buildAAB(const BuildConfig &config)
             return;
         }
 
+        // If clean build requested, run gradle clean
+        if (config.cleanBuild) {
+            if (m_progressCallback) {
+                m_progressCallback("Performing clean build (gradlew clean)...");
+            }
+
+            std::vector<std::string> cleanLastLines;
+            int cleanRc = 0;
+#ifdef _WIN32
+            SECURITY_ATTRIBUTES saAttrC{sizeof(SECURITY_ATTRIBUTES), NULL, TRUE};
+            HANDLE rd = NULL, wr = NULL;
+            if (!CreatePipe(&rd, &wr, &saAttrC, 0) || !SetHandleInformation(rd, HANDLE_FLAG_INHERIT, 0)) {
+                if (m_finishedCallback) m_finishedCallback(false, "Failed to start clean process.");
+                m_impl->buildInProgress = false;
+                return;
+            }
+            PROCESS_INFORMATION pi{}; STARTUPINFOA si{}; si.cb = sizeof(si);
+            si.hStdError = wr; si.hStdOutput = wr; si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+            si.dwFlags |= STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW; si.wShowWindow = SW_HIDE;
+            std::string cleanCmd = "cmd /c \"cd /d \"" + config.projectPath + "\\android\" && gradlew clean\"";
+            BOOL ok = CreateProcessA(NULL, cleanCmd.data(), NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi);
+            if (!ok) {
+                CloseHandle(rd); CloseHandle(wr);
+                if (m_finishedCallback) m_finishedCallback(false, "Failed to start gradle clean. Ensure Gradle wrapper exists.");
+                m_impl->buildInProgress = false;
+                return;
+            }
+            CloseHandle(wr);
+            CHAR buf[4096]; DWORD n;
+            while (ReadFile(rd, buf, sizeof(buf)-1, &n, NULL) && n) {
+                buf[n] = '\0';
+                std::string chunk(buf);
+                if (m_progressCallback) m_progressCallback(chunk);
+                cleanLastLines.push_back(chunk);
+                if (cleanLastLines.size() > 100) cleanLastLines.erase(cleanLastLines.begin());
+            }
+            WaitForSingleObject(pi.hProcess, INFINITE);
+            DWORD ec; GetExitCodeProcess(pi.hProcess, &ec); cleanRc = (int)ec;
+            CloseHandle(pi.hProcess); CloseHandle(pi.hThread); CloseHandle(rd);
+#else
+            std::string cleanCmd = "cd \"" + config.projectPath + "/android\" && ./gradlew clean 2>&1";
+            FILE* cp = popen(cleanCmd.c_str(), "r");
+            if (!cp) { if (m_finishedCallback) m_finishedCallback(false, "Failed to start gradle clean."); m_impl->buildInProgress = false; return; }
+            char cbuf[4096];
+            while (fgets(cbuf, sizeof(cbuf), cp)) { std::string line(cbuf); if (m_progressCallback) m_progressCallback(line); }
+            cleanRc = pclose(cp);
+#endif
+            if (cleanRc != 0) {
+                if (m_finishedCallback) {
+                    m_finishedCallback(false, "gradlew clean failed. See log for details.");
+                }
+                m_impl->buildInProgress = false;
+                return;
+            }
+        }
+
         std::vector<std::string> lastLines;
         lastLines.reserve(100);
         int rc = 0;
@@ -275,7 +331,7 @@ void BuildAutomator::buildAAB(const BuildConfig &config)
             return;
         }
 
-        // Try to copy to output directory
+        // Try to copy to output directory with naming rules
         std::filesystem::path finalPath = aabPath;
         if (!config.outputPath.empty()) {
             std::error_code ec;
@@ -286,7 +342,34 @@ void BuildAutomator::buildAAB(const BuildConfig &config)
                     m_progressCallback(std::string("Warning: Could not create output directory: ") + ec.message());
                 }
             } else {
-                std::filesystem::path destPath = outDir / aabPath.filename();
+                // Determine base name: user-provided or project name + date
+                std::string baseName = config.outputFileName;
+                auto trim = [](std::string s){ s.erase(0, s.find_first_not_of(" \t\n\r")); s.erase(s.find_last_not_of(" \t\n\r") + 1); return s; };
+                baseName = trim(baseName);
+                if (baseName.empty()) {
+                    // derive from project folder name
+                    std::filesystem::path proj(config.projectPath);
+                    std::string projName = proj.filename().string();
+                    // date as ddmmyyyy
+                    std::time_t t = std::time(nullptr);
+                    std::tm tm{};
+#ifdef _WIN32
+                    localtime_s(&tm, &t);
+#else
+                    localtime_r(&t, &tm);
+#endif
+                    char datebuf[16];
+                    std::snprintf(datebuf, sizeof(datebuf), "%02d%02d%04d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+                    baseName = projName + datebuf;
+                }
+
+                // ensure unique
+                std::filesystem::path destPath = outDir / (baseName + ".aab");
+                int suffix = 1;
+                while (std::filesystem::exists(destPath)) {
+                    destPath = outDir / (baseName + "-" + std::to_string(suffix) + ".aab");
+                    ++suffix;
+                }
                 std::filesystem::copy_options options = std::filesystem::copy_options::overwrite_existing;
                 std::filesystem::copy_file(aabPath, destPath, options, ec);
                 if (ec) {
