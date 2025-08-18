@@ -1,0 +1,46 @@
+# Build directories
+build/
+*.exe
+*.app
+*.dmg
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Qt MOC files
+moc_*
+qrc_*
+ui_*
+
+# FLTK source and build files
+fltk/
+fltk-*/
+
+# IDE files
+.vscode/
+.idea/
+*.pro.user
+*.pro.user.*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Qt Creator files
+*.autosave
+
+# Visual Studio files
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sln
