@@ -51,3 +51,11 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     WIN32_EXECUTABLE TRUE
     MACOSX_BUNDLE TRUE
 )
+
+# Copy bundletool.jar to output directory after build
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_SOURCE_DIR}/bundletool.jar
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>/bundletool.jar
+    COMMENT "Copying bundletool.jar to output directory"
+)

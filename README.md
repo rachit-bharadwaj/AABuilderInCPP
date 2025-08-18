@@ -40,6 +40,12 @@ A professional desktop application built with C++ and FLTK that automates the Re
    - Install Android Studio or just the command line tools
    - Set ANDROID_HOME environment variable
 
+6. **bundletool.jar** (for APK generation)
+   - Download from: https://github.com/google/bundletool/releases
+   - Or run `download-bundletool.bat` to automatically download it
+   - Place `bundletool.jar` in the project root directory (same folder as `build.bat`)
+   - This file is required for converting AAB to APK
+
 ### Environment Setup
 
 1. **Add to PATH:**
@@ -51,8 +57,11 @@ A professional desktop application built with C++ and FLTK that automates the Re
 ### Windows
 
 1. Clone or download this repository
-2. Open Command Prompt in the project directory
-3. Run the build script:
+2. **Download bundletool.jar**:
+   - Option A: Run `download-bundletool.bat` to automatically download it
+   - Option B: Manually download from https://github.com/google/bundletool/releases and place it in the project root
+3. Open Command Prompt in the project directory
+4. Run the build script:
    ```cmd
    build.bat
    ```
@@ -126,36 +135,27 @@ prod-app-builder/
 
 ### Common Issues
 
-1. **"FLTK not found" error**
-   - FLTK will be automatically installed during the first build
-   - If issues persist, manually install FLTK from: https://www.fltk.org/
+1. **"bundletool.jar not found" error**
+   - Ensure `bundletool.jar` is in the same directory as the executable
+   - Download the latest version from: https://github.com/google/bundletool/releases
+   - For development: place it in the project root directory
+   - For distribution: ensure it's copied to the same folder as the `.exe` file
 
-2. **"expo command not found"**
-   - Install Expo CLI: `npm install -g @expo/cli`
-   - Restart your terminal/command prompt
+2. **Build fails with "command not found"**
+   - Ensure Node.js and React Native CLI are installed and in PATH
+   - Verify that `npx` command is available
 
-3. **"eas command not found"**
-   - Install EAS CLI: `npm install -g eas-cli`
-   - Login to your Expo account: `eas login`
+3. **Android SDK errors**
+   - Set ANDROID_HOME environment variable to your Android SDK path
+   - Ensure Android SDK tools are properly installed
 
-4. **"bundletool not found"**
-   - Install Android SDK build-tools
-   - Ensure ANDROID_HOME environment variable is set
-
-5. **Build fails with permission errors**
-   - Run as administrator on Windows
-   - Check that all paths are accessible
-
-### Build Output Locations
-
-The application looks for built files in these locations:
-- `{project}/build-output/`
-- `{project}/android/app/build/outputs/bundle/release/`
-- `{project}/android/app/build/outputs/apk/release/`
+4. **FLTK compilation errors**
+   - Delete the `build` folder and run `build.bat` again
+   - Ensure MinGW-w64 is properly installed and in PATH
 
 ## License
 
-This project is completely free and open-source. Feel free to modify and distribute.
+This project is open source and available under the MIT License.
 
 ## Contributing
 

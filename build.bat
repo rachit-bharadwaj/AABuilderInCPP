@@ -2,6 +2,19 @@
 echo Building React Native Build Automator with FLTK...
 echo.
 
+REM Check if bundletool.jar exists
+if not exist "bundletool.jar" (
+    echo [ERROR] bundletool.jar not found in project root!
+    echo Please download bundletool.jar from: https://github.com/google/bundletool/releases
+    echo and place it in the same directory as this build script.
+    echo.
+    pause
+    exit /b 1
+)
+
+echo [INFO] bundletool.jar found - proceeding with build
+echo.
+
 REM Check if CMake is available
 cmake --version >nul 2>&1
 if errorlevel 1 (
@@ -115,5 +128,16 @@ if errorlevel 1 (
 echo.
 echo Build completed successfully!
 echo Executable location: build\RNBuildAutomator.exe
+echo.
+
+REM Copy bundletool.jar to build directory for development
+echo Copying bundletool.jar to build directory...
+copy "..\bundletool.jar" "bundletool.jar" >nul
+if errorlevel 1 (
+    echo [WARNING] Failed to copy bundletool.jar to build directory
+) else (
+    echo [INFO] bundletool.jar copied to build directory
+)
+
 echo.
 pause
