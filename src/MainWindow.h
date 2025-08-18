@@ -37,6 +37,7 @@ private:
     bool validateInputs();
     void updateLayout(int w, int h);
     static void busyTick_cb(void* userdata);
+    std::string generateDefaultOutputName(const std::string& projectPath);
     
     // UI Components
     Fl_Group *m_inputGroup;

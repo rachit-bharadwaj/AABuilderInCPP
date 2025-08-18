@@ -33,6 +33,13 @@ MainWindow::MainWindow()
     // Debug: Log that initialization is complete
     logMessage("MainWindow initialized successfully");
     logMessage("BuildAutomator callbacks set up");
+    
+    // If project path is already set, populate default output name
+    if (strlen(m_projectPathEdit->value()) > 0) {
+        std::string defaultName = generateDefaultOutputName(m_projectPathEdit->value());
+        logMessage(std::string("Startup: Setting default output name to: ") + defaultName);
+        m_outputNameEdit->value(defaultName.c_str());
+    }
 }
 
 MainWindow::~MainWindow()
@@ -54,7 +61,7 @@ void MainWindow::setupUI()
     m_lblProjectPath->labelsize(12);
     m_projectPathEdit = new Fl_Input(140, 50, 500, 25);
     m_projectPathEdit->callback(inputChanged_cb, this);
-    m_projectPathEdit->when(FL_WHEN_CHANGED);
+    m_projectPathEdit->when(FL_WHEN_CHANGED | FL_WHEN_RELEASE);
     m_projectPathButton = new Fl_Button(650, 50, 100, 25, "Browse");
     m_projectPathButton->callback(selectProjectPath_cb, this);
     
@@ -276,22 +283,13 @@ void MainWindow::selectProjectPath_cb(Fl_Widget*, void* v)
     if (dir) {
         w->m_projectPathEdit->value(dir);
         w->logMessage(std::string("Selected project path: ") + dir);
-        // Prefill default output name: {project}{ddmmyyyy}
-        std::filesystem::path proj(dir);
-        std::string projName = proj.filename().string();
-        if (projName.empty()) projName = proj.parent_path().filename().string();
-        if (projName.empty()) projName = "app";
-        std::time_t t = std::time(nullptr);
-        std::tm tm{};
-#ifdef _WIN32
-        localtime_s(&tm, &t);
-#else
-        localtime_r(&t, &tm);
-#endif
-        char datebuf[16];
-        std::snprintf(datebuf, sizeof(datebuf), "%02d%02d%04d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
-        std::string defaultName = projName + datebuf;
+        
+        // Generate and set default output name
+        std::string defaultName = w->generateDefaultOutputName(dir);
+        w->logMessage(std::string("Generated default name: ") + defaultName);
         w->m_outputNameEdit->value(defaultName.c_str());
+        w->logMessage(std::string("Set output name to: ") + w->m_outputNameEdit->value());
+        
         w->updateBuildButtonStates();
     }
 }
@@ -318,9 +316,21 @@ void MainWindow::selectKeystore_cb(Fl_Widget*, void* v)
     }
 }
 
-void MainWindow::inputChanged_cb(Fl_Widget*, void* v)
+void MainWindow::inputChanged_cb(Fl_Widget* widget, void* v)
 {
     MainWindow* w = static_cast<MainWindow*>(v);
+    
+    // Check if this is the project path input field
+    if (widget == w->m_projectPathEdit) {
+        const char* projectPath = w->m_projectPathEdit->value();
+        if (strlen(projectPath) > 0) {
+            // Generate and set default output name when project path is manually entered
+            std::string defaultName = w->generateDefaultOutputName(projectPath);
+            w->logMessage(std::string("Auto-generated output name: ") + defaultName);
+            w->m_outputNameEdit->value(defaultName.c_str());
+        }
+    }
+    
     w->updateBuildButtonStates();
 }
 
@@ -496,4 +506,23 @@ void MainWindow::busyTick_cb(void* userdata)
     w->m_progressBar->value(v);
     w->m_progressBar->redraw();
     Fl::repeat_timeout(0.05, busyTick_cb, w);
+}
+
+std::string MainWindow::generateDefaultOutputName(const std::string& projectPath)
+{
+    std::filesystem::path proj(projectPath);
+    std::string projName = proj.filename().string();
+    if (projName.empty()) projName = proj.parent_path().filename().string();
+    if (projName.empty()) projName = "app";
+
+    std::time_t t = std::time(nullptr);
+    std::tm tm{};
+#ifdef _WIN32
+    localtime_s(&tm, &t);
+#else
+    localtime_r(&t, &tm);
+#endif
+    char datebuf[16];
+    std::snprintf(datebuf, sizeof(datebuf), "%02d%02d%04d", tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900);
+    return projName + datebuf;
 }
