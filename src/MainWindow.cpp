@@ -9,6 +9,10 @@ MainWindow::MainWindow()
     , m_buildAutomator(new BuildAutomator())
 {
     setupUI();
+    // Enable resizing and maximize button
+    this->resizable(m_logGroup);
+    this->size_range(800, 600, 0, 0);
+    this->color(fl_rgb_color(245,246,250));
     
     // Set up callbacks for build automator
     m_buildAutomator->setProgressCallback([this](const std::string& message) {
@@ -35,7 +39,9 @@ void MainWindow::setupUI()
 {
     // Input group
     m_inputGroup = new Fl_Group(20, 20, 760, 180, "Project Configuration");
-    m_inputGroup->box(FL_UP_BOX);
+    m_inputGroup->box(FL_PLASTIC_UP_BOX);
+    m_inputGroup->labelfont(FL_HELVETICA_BOLD);
+    m_inputGroup->labelsize(14);
     
     // Project path
     new Fl_Box(30, 50, 100, 25, "Project Path:");
@@ -83,7 +89,9 @@ void MainWindow::setupUI()
     
     // Options group
     m_optionsGroup = new Fl_Group(20, 220, 760, 80, "Build Options");
-    m_optionsGroup->box(FL_UP_BOX);
+    m_optionsGroup->box(FL_PLASTIC_UP_BOX);
+    m_optionsGroup->labelfont(FL_HELVETICA_BOLD);
+    m_optionsGroup->labelsize(14);
     
     new Fl_Box(30, 250, 100, 25, "Build Mode:");
     m_buildModeCombo = new Fl_Choice(140, 250, 150, 25);
@@ -98,35 +106,57 @@ void MainWindow::setupUI()
     
     // Action group
     m_actionGroup = new Fl_Group(20, 320, 760, 80, "Build Actions");
-    m_actionGroup->box(FL_UP_BOX);
+    m_actionGroup->box(FL_PLASTIC_UP_BOX);
+    m_actionGroup->labelfont(FL_HELVETICA_BOLD);
+    m_actionGroup->labelsize(14);
     
     m_buildAABButton = new Fl_Button(30, 350, 120, 40, "Build AAB");
     m_buildAABButton->callback(buildAAB_cb, this);
-    m_buildAABButton->color(FL_GREEN);
+    m_buildAABButton->color(fl_rgb_color(46, 204, 113));
+    m_buildAABButton->selection_color(fl_rgb_color(39, 174, 96));
+    m_buildAABButton->labelfont(FL_HELVETICA_BOLD);
+    m_buildAABButton->labelsize(14);
     m_buildAABButton->labelcolor(FL_WHITE);
     
     m_buildAPKButton = new Fl_Button(170, 350, 120, 40, "Build APK");
     m_buildAPKButton->callback(buildAPK_cb, this);
-    m_buildAPKButton->color(FL_BLUE);
+    m_buildAPKButton->color(fl_rgb_color(52, 152, 219));
+    m_buildAPKButton->selection_color(fl_rgb_color(41, 128, 185));
+    m_buildAPKButton->labelfont(FL_HELVETICA_BOLD);
+    m_buildAPKButton->labelsize(14);
     m_buildAPKButton->labelcolor(FL_WHITE);
     
     m_clearLogButton = new Fl_Button(310, 350, 120, 40, "Clear Log");
     m_clearLogButton->callback(clearLog_cb, this);
+    m_clearLogButton->color(fl_rgb_color(236, 240, 241));
+    m_clearLogButton->selection_color(fl_rgb_color(189, 195, 199));
+    m_clearLogButton->labelfont(FL_HELVETICA_BOLD);
+    m_clearLogButton->labelsize(14);
     
     m_actionGroup->end();
     
     // Log group
     m_logGroup = new Fl_Group(20, 420, 760, 160, "Build Log");
-    m_logGroup->box(FL_UP_BOX);
+    m_logGroup->box(FL_PLASTIC_UP_BOX);
+    m_logGroup->labelfont(FL_HELVETICA_BOLD);
+    m_logGroup->labelsize(14);
     
     m_progressBar = new Fl_Progress(30, 450, 740, 20);
+    m_progressBar->color(fl_rgb_color(230, 230, 230));
+    m_progressBar->selection_color(fl_rgb_color(52, 152, 219));
     m_progressBar->hide();
     
     m_logBuffer = new Fl_Text_Buffer();
     m_logTextEdit = new Fl_Text_Display(30, 480, 740, 90);
     m_logTextEdit->buffer(m_logBuffer);
     m_logTextEdit->textfont(FL_COURIER);
-    m_logTextEdit->textsize(10);
+    m_logTextEdit->textsize(11);
+    m_logTextEdit->color(FL_WHITE);
+    m_logTextEdit->textcolor(FL_BLACK);
+    m_logTextEdit->scrollbar_align(FL_ALIGN_RIGHT);
+
+    // Make the log area resizable with the window
+    m_logGroup->resizable(m_logTextEdit);
     
     m_logGroup->end();
 }
@@ -299,7 +329,7 @@ void MainWindow::onBuildFinished(bool success, const std::string& message)
     
     if (success) {
         logMessage("\n✅ BUILD SUCCESSFUL: " + message + "\n");
-        fl_message("Build Complete: %s", message.c_str());
+        // Success: keep feedback in the log only, no popup
     } else {
         logMessage("\n❌ BUILD FAILED: " + message + "\n");
         fl_alert("Build Error: %s", message.c_str());

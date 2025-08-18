@@ -6,10 +6,11 @@
 int main(int argc, char *argv[])
 {
     // Initialize FLTK
-    Fl::scheme("gtk+"); // Use GTK+ theme for modern look
+    Fl::scheme("plastic"); // Use a modern-looking scheme
     
     // Create and show main window
     MainWindow *window = new MainWindow();
+    window->size_range(800, 600, 0, 0);
     window->show();
     
     // Run FLTK event loop
